@@ -1,0 +1,16 @@
+# Example configuration file for log-time-analyzer
+# 
+# timestamp_regex: Regular expression to extract timestamps from log lines
+# The regex should have a capture group that contains the timestamp
+timestamp_regex: '(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})'
+
+# timestamp_format: The format string for parsing the timestamp
+# Uses chrono's strftime format specifiers
+timestamp_format: '%Y-%m-%d %H:%M:%S'
+
+# message_patterns: Array of message patterns to look for
+# The tool will find the time interval between consecutive matches
+message_patterns:
+  - 'Starting request processing'
+  - 'Database query completed'
+  - 'Response sent to client'
