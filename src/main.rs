@@ -20,13 +20,25 @@ struct Args {
     #[arg(short, long)]
     log_file: PathBuf,
     
-    /// Path to the YAML configuration file
-    #[arg(short, long, default_value = "config.yaml")]
-    config: PathBuf,
+    /// Path to the YAML configuration file (optional if CLI args provided)
+    #[arg(short, long)]
+    config: Option<PathBuf>,
     
     /// Output format: human, json, csv, tsv, table, or simple
     #[arg(short = 'f', long, default_value = "human")]
     format: String,
+    
+    /// Regular expression to extract timestamps (overrides config file)
+    #[arg(short = 'r', long)]
+    timestamp_regex: Option<String>,
+    
+    /// Timestamp format string using chrono format (overrides config file)
+    #[arg(short = 't', long)]
+    timestamp_format: Option<String>,
+    
+    /// Message patterns to search for (can be specified multiple times, overrides config file)
+    #[arg(short = 'p', long = "pattern")]
+    patterns: Vec<String>,
 }
 
 fn main() -> Result<()> {
@@ -39,9 +51,20 @@ fn main() -> Result<()> {
             args.format
         ))?;
     
-    // Load configuration
-    let config = Config::from_file(&args.config)
-        .context("Failed to load configuration")?;
+    // Load configuration with CLI overrides
+    let patterns = if args.patterns.is_empty() {
+        None
+    } else {
+        Some(args.patterns)
+    };
+    
+    let config = Config::from_file_with_overrides(
+        args.config.as_deref(),
+        args.timestamp_regex,
+        args.timestamp_format,
+        patterns,
+    )
+    .context("Failed to load configuration")?;
     
     // Create parser
     let parser = LogParser::new(&config)

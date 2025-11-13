@@ -22,7 +22,11 @@ The binary will be available at `target/release/log-time-analyzer`.
 
 ## Configuration
 
-Create a YAML configuration file (default: `config.yaml`) with the following structure:
+You can configure the tool either through a YAML file or via command-line arguments. CLI arguments take precedence over the config file.
+
+### YAML Configuration
+
+Create a YAML configuration file with the following structure:
 
 ```yaml
 # Regular expression to extract timestamps from log lines
@@ -46,6 +50,33 @@ message_patterns:
 - **timestamp_format**: A [chrono strftime format string](https://docs.rs/chrono/latest/chrono/format/strftime/index.html) to parse the extracted timestamp
 - **message_patterns**: An array of regular expression patterns to search for in the log file
 
+### CLI Configuration Override
+
+All configuration values can be provided or overridden via command-line arguments:
+
+```bash
+# Override just the patterns
+./log-time-analyzer -l app.log -c config.yaml \
+  -p "Starting" -p "Finished"
+
+# Override timestamp handling
+./log-time-analyzer -l app.log -c config.yaml \
+  -r '(\d{2}:\d{2}:\d{2}\.\d{3})' \
+  -t '%H:%M:%S%.3f'
+
+# Run without config file (all values via CLI)
+./log-time-analyzer -l app.log \
+  -r '(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})' \
+  -t '%Y-%m-%dT%H:%M:%S' \
+  -p "ERROR" -p "WARN" -p "INFO"
+```
+
+This is particularly useful for:
+- Quick one-off analyses without creating a config file
+- Testing different patterns without modifying the config file
+- Scripting and automation where configs are dynamically generated
+- CI/CD pipelines where you want to parameterize the analysis
+
 ## Usage
 
 Basic usage:
@@ -56,8 +87,23 @@ Basic usage:
 
 ### Command Line Options
 
-- `-l, --log-file <PATH>`: Path to the log file to analyze (required)
-- `-c, --config <PATH>`: Path to the YAML configuration file (default: `config.yaml`)
+#### Required Arguments
+
+- `-l, --log-file <PATH>`: Path to the log file to analyze
+
+#### Configuration Arguments
+
+You can either use a YAML config file or provide all settings via CLI:
+
+- `-c, --config <PATH>`: Path to the YAML configuration file (optional if CLI options provided)
+- `-r, --timestamp-regex <REGEX>`: Regular expression to extract timestamps (overrides config)
+- `-t, --timestamp-format <FORMAT>`: Timestamp format string using chrono format (overrides config)
+- `-p, --pattern <PATTERN>`: Message pattern to search for (can be specified multiple times, overrides config)
+
+**Note:** When no config file is provided, you must specify `-r`, `-t`, and at least two `-p` arguments.
+
+#### Output Options
+
 - `-f, --format <FORMAT>`: Output format (default: `human`)
   - `human` - Human-readable format with arrows
   - `json` - JSON format for programmatic consumption
@@ -65,7 +111,40 @@ Basic usage:
   - `tsv` - Tab-separated values
   - `table` - Formatted table with aligned columns
   - `simple` - Pipe-separated format with milliseconds only
+
+#### Other Options
+
 - `-h, --help`: Print help information
+
+### Usage Patterns
+
+**Using config file:**
+```bash
+./log-time-analyzer --log-file app.log --config config.yaml
+```
+
+**Override specific patterns:**
+```bash
+./log-time-analyzer -l app.log -c config.yaml -p "Error" -p "Warning"
+```
+
+**No config file (all CLI):**
+```bash
+./log-time-analyzer -l app.log \
+  -r '(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})' \
+  -t '%Y-%m-%d %H:%M:%S' \
+  -p "Starting request" \
+  -p "Request completed"
+```
+
+**Override everything:**
+```bash
+./log-time-analyzer -l app.log -c config.yaml \
+  -r '(\d{2}:\d{2}:\d{2})' \
+  -t '%H:%M:%S' \
+  -p "BEGIN" -p "END" \
+  -f json
+```
 
 ## Output Formats
 
@@ -273,10 +352,17 @@ The tool will provide helpful error messages for:
 - Missing log files
 - Configurations with fewer than 2 message patterns
 
+## More Examples
+
+For extensive CLI examples including scripting, automation, and CI/CD integration, see:
+- **[CLI_EXAMPLES.md](CLI_EXAMPLES.md)** - Comprehensive CLI usage examples
+- **[OUTPUT_FORMATS.md](OUTPUT_FORMATS.md)** - Detailed output format comparison
+
 ## Dependencies
 
 - `clap` - Command line argument parsing
 - `serde` / `serde_yaml` - YAML configuration parsing
+- `serde_json` - JSON output formatting
 - `regex` - Regular expression matching
 - `chrono` - Timestamp parsing and duration calculations
 - `anyhow` - Error handling
