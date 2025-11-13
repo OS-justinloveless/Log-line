@@ -1,0 +1,7 @@
+# Configuration file for log-time-analyzer
+timestamp_regex: '(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})'
+timestamp_format: '%Y-%m-%d %H:%M:%S'
+message_patterns:
+  - 'Starting request processing'
+  - 'Database query completed'
+  - 'Response sent to client'
