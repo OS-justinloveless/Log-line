@@ -24,7 +24,7 @@ struct Args {
     #[arg(short, long)]
     config: Option<PathBuf>,
     
-    /// Output format: human, json, csv, tsv, table, or simple
+    /// Output format: human, json, csv, tsv, table, simple, or waterfall
     #[arg(short = 'f', long, default_value = "human")]
     format: String,
     
@@ -47,7 +47,7 @@ fn main() -> Result<()> {
     // Parse output format
     let output_format = OutputFormat::from_str(&args.format)
         .ok_or_else(|| anyhow::anyhow!(
-            "Invalid output format '{}'. Valid options: human, json, csv, tsv, table, simple",
+            "Invalid output format '{}'. Valid options: human, json, csv, tsv, table, simple, waterfall",
             args.format
         ))?;
     

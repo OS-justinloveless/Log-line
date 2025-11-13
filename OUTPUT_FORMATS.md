@@ -12,6 +12,7 @@ This document shows all available output formats with the same example data.
 | **tsv** | Unix tools (awk, cut) | `--format tsv` |
 | **table** | Terminal display | `--format table` |
 | **simple** | Shell scripts, minimal | `--format simple` |
+| **waterfall** | Visual duration comparison | `--format waterfall` |
 
 ---
 
@@ -219,10 +220,65 @@ done
 
 ---
 
+## 7. Waterfall Format
+
+```
+                                                            |                        
+                                                            |                        
+                                                            |                        
+                                                            |                        
+                        |           |                       |                        
+                        |           |                       |                        
+                        |           |                       |                        
+|           |           |           |           |           |           |            
+|           |           |           |           |           |           |           |
+=====================================================================================
+
+1: Start...→Datab... (2s 0ms)
+2: Datab...→Respo... (2s 0ms)
+3: Respo...→Start... (5s 0ms)
+4: Start...→Datab... (5s 0ms)
+5: Datab...→Respo... (2s 0ms)
+6: Respo...→Start... (43s 0ms)
+7: Start...→Datab... (2s 0ms)
+8: Datab...→Respo... (1s 0ms)
+```
+
+**Pros:**
+- Visual comparison of relative durations
+- Easy to spot outliers at a glance
+- Shows temporal progression horizontally
+- Height proportional to duration (max 40 rows)
+- Works well in terminals
+
+**Cons:**
+- Not meant for parsing
+- Requires adequate terminal width
+- Less detailed than table format
+
+**Example Usage:**
+```bash
+# Quick visual overview of performance
+log-time-analyzer -l app.log -f waterfall
+
+# Identify bottlenecks visually
+log-time-analyzer -l app.log -f waterfall | less -S
+```
+
+**How It Works:**
+- Each interval is represented by a vertical bar (`|`)
+- Bar height is proportional to the duration (normalized to max 40 rows)
+- Intervals are spread evenly across 100 columns
+- Minimum height is 1 row (even for very short durations)
+- Labels show pattern transitions below the waterfall
+
+---
+
 ## Choosing the Right Format
 
 ### For Humans
 - **Quick view in terminal**: `table` or `human`
+- **Visual duration comparison**: `waterfall`
 - **Documentation/reports**: `table`
 - **Debugging logs**: `human`
 
