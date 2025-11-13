@@ -58,34 +58,136 @@ Basic usage:
 
 - `-l, --log-file <PATH>`: Path to the log file to analyze (required)
 - `-c, --config <PATH>`: Path to the YAML configuration file (default: `config.yaml`)
+- `-f, --format <FORMAT>`: Output format (default: `human`)
+  - `human` - Human-readable format with arrows
+  - `json` - JSON format for programmatic consumption
+  - `csv` - CSV format for spreadsheets
+  - `tsv` - Tab-separated values
+  - `table` - Formatted table with aligned columns
+  - `simple` - Pipe-separated format with milliseconds only
 - `-h, --help`: Print help information
 
-## Output Format
+## Output Formats
 
-The tool outputs one line per interval found, in the following format:
+The tool supports multiple output formats for both human readability and machine processing:
 
-```
-Message pattern A :::: duration ::::> Message pattern B
-```
+### 1. Human Format (Default)
 
-Where `duration` is formatted in a human-readable way:
-- Hours, minutes, seconds (e.g., `1h 30m 45s`)
-- Minutes, seconds (e.g., `2m 30s`)
-- Seconds, milliseconds (e.g., `5s 123ms`)
-- Milliseconds only (e.g., `250ms`)
-
-### Example Output
+Human-friendly format with arrows showing the flow:
 
 ```
 Starting request processing :::: 2s 0ms ::::> Database query completed
 Database query completed :::: 2s 0ms ::::> Response sent to client
 Response sent to client :::: 5s 0ms ::::> Starting request processing
-Starting request processing :::: 5s 0ms ::::> Database query completed
-Database query completed :::: 2s 0ms ::::> Response sent to client
-Response sent to client :::: 43s 0ms ::::> Starting request processing
-Starting request processing :::: 2s 0ms ::::> Database query completed
-Database query completed :::: 1s 0ms ::::> Response sent to client
 ```
+
+**Usage:** `--format human` (or omit the flag)
+
+### 2. JSON Format
+
+Structured JSON output perfect for programmatic processing:
+
+```json
+[
+  {
+    "from_pattern": "Starting request processing",
+    "to_pattern": "Database query completed",
+    "duration_ms": 2000,
+    "duration_human": "2s 0ms"
+  },
+  {
+    "from_pattern": "Database query completed",
+    "to_pattern": "Response sent to client",
+    "duration_ms": 2000,
+    "duration_human": "2s 0ms"
+  }
+]
+```
+
+**Usage:** `--format json`
+
+**Use cases:**
+- Parsing with `jq` for further analysis
+- Importing into monitoring tools
+- Processing with Python/JavaScript scripts
+
+### 3. CSV Format
+
+Comma-separated values with headers, ideal for spreadsheets:
+
+```csv
+from_pattern,to_pattern,duration_ms,duration_human
+"Starting request processing","Database query completed",2000,"2s 0ms"
+"Database query completed","Response sent to client",2000,"2s 0ms"
+```
+
+**Usage:** `--format csv`
+
+**Use cases:**
+- Import into Excel/Google Sheets
+- Load into databases
+- Analysis with pandas or R
+
+### 4. TSV Format
+
+Tab-separated values for easy text processing:
+
+```
+from_pattern	to_pattern	duration_ms	duration_human
+Starting request processing	Database query completed	2000	2s 0ms
+Database query completed	Response sent to client	2000	2s 0ms
+```
+
+**Usage:** `--format tsv`
+
+**Use cases:**
+- Processing with `awk`, `cut`, or other Unix tools
+- Quick inspection in terminal
+- Copy-paste into documents
+
+### 5. Table Format
+
+Pretty-printed table with aligned columns:
+
+```
+| From Pattern                | To Pattern                  | Duration | Duration (ms) |
+|-----------------------------|-----------------------------|----------|---------------|
+| Starting request processing | Database query completed    | 2s 0ms   |          2000 |
+| Database query completed    | Response sent to client     | 2s 0ms   |          2000 |
+| Response sent to client     | Starting request processing | 5s 0ms   |          5000 |
+```
+
+**Usage:** `--format table`
+
+**Use cases:**
+- Terminal display
+- Documentation and reports
+- Quick visual inspection
+
+### 6. Simple Format
+
+Minimal pipe-separated format with durations in milliseconds only:
+
+```
+Starting request processing|Database query completed|2000
+Database query completed|Response sent to client|2000
+Response sent to client|Starting request processing|5000
+```
+
+**Usage:** `--format simple`
+
+**Use cases:**
+- Simplest parsing in shell scripts
+- When you only need raw milliseconds
+- Minimal output size
+
+## Duration Formatting
+
+For formats that include human-readable durations, the tool automatically formats them:
+- Hours, minutes, seconds: `1h 30m 45s`
+- Minutes, seconds: `2m 30s`
+- Seconds, milliseconds: `5s 123ms`
+- Milliseconds only: `250ms`
 
 ## Example Log File
 
@@ -99,6 +201,38 @@ An example log file (`example.log`) is included with timestamps in ISO format:
 2025-11-13 10:00:04 [DEBUG] Processing results
 2025-11-13 10:00:05 [INFO] Response sent to client
 ...
+```
+
+## Practical Examples
+
+### Piping JSON to jq
+
+Analyze which pattern transitions take the longest:
+
+```bash
+./log-time-analyzer -l app.log -f json | jq 'sort_by(.duration_ms) | reverse | .[0:5]'
+```
+
+### Import CSV into SQLite
+
+```bash
+./log-time-analyzer -l app.log -f csv > intervals.csv
+sqlite3 analysis.db ".import intervals.csv intervals"
+sqlite3 analysis.db "SELECT from_pattern, AVG(duration_ms) FROM intervals GROUP BY from_pattern;"
+```
+
+### Quick stats with awk (TSV format)
+
+Calculate average duration between patterns:
+
+```bash
+./log-time-analyzer -l app.log -f tsv | awk 'NR>1 {sum+=$3; count++} END {print "Average:", sum/count, "ms"}'
+```
+
+### Filter specific patterns (Simple format)
+
+```bash
+./log-time-analyzer -l app.log -f simple | grep "Database query" | cut -d'|' -f3
 ```
 
 ## Advanced Usage

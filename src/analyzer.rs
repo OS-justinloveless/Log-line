@@ -10,11 +10,15 @@ pub struct Interval {
 
 impl Interval {
     pub fn format(&self) -> String {
-        let duration_str = format_duration(&self.duration);
+        let duration_str = self.format_duration();
         format!("{} :::: {} ::::> {}", 
             self.from_pattern, 
             duration_str, 
             self.to_pattern)
+    }
+    
+    pub fn format_duration(&self) -> String {
+        format_duration(&self.duration)
     }
 }
 

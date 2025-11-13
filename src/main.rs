@@ -1,6 +1,7 @@
 mod config;
 mod parser;
 mod analyzer;
+mod output;
 
 use anyhow::{Context, Result};
 use clap::Parser as ClapParser;
@@ -9,6 +10,7 @@ use std::path::PathBuf;
 use config::Config;
 use parser::LogParser;
 use analyzer::Analyzer;
+use output::{OutputFormat, OutputFormatter};
 
 #[derive(ClapParser, Debug)]
 #[command(name = "log-time-analyzer")]
@@ -21,10 +23,21 @@ struct Args {
     /// Path to the YAML configuration file
     #[arg(short, long, default_value = "config.yaml")]
     config: PathBuf,
+    
+    /// Output format: human, json, csv, tsv, table, or simple
+    #[arg(short = 'f', long, default_value = "human")]
+    format: String,
 }
 
 fn main() -> Result<()> {
     let args = Args::parse();
+    
+    // Parse output format
+    let output_format = OutputFormat::from_str(&args.format)
+        .ok_or_else(|| anyhow::anyhow!(
+            "Invalid output format '{}'. Valid options: human, json, csv, tsv, table, simple",
+            args.format
+        ))?;
     
     // Load configuration
     let config = Config::from_file(&args.config)
@@ -51,10 +64,9 @@ fn main() -> Result<()> {
         return Ok(());
     }
     
-    // Output results
-    for interval in intervals {
-        println!("{}", interval.format());
-    }
+    // Format and output results
+    let output = OutputFormatter::format_intervals(&intervals, output_format);
+    println!("{}", output);
     
     Ok(())
 }
