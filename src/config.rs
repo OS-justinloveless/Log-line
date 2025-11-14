@@ -34,24 +34,6 @@ impl Config {
         Ok(config)
     }
     
-    /// Create a new config with all values provided
-    pub fn new(
-        timestamp_regex: String,
-        timestamp_format: String,
-        message_patterns: Vec<String>,
-    ) -> Result<Self> {
-        let config = Config {
-            timestamp_regex,
-            timestamp_format,
-            message_patterns,
-            is_auto_detect: false,
-        };
-        
-        config.validate()?;
-        
-        Ok(config)
-    }
-    
     /// Create a config for auto-detection mode
     pub fn for_auto_detection(message_patterns: Vec<String>) -> Result<Self> {
         let config = Config {
