@@ -44,10 +44,15 @@ impl LogParser {
             .with_context(|| format!("Failed to open log file: {:?}", path.as_ref()))?;
         
         let reader = BufReader::new(file);
+        self.parse_reader(reader)
+    }
+    
+    /// Parse log data from any reader (file, stdin, etc.) and return all matches in order
+    pub fn parse_reader<R: BufRead>(&self, reader: R) -> Result<Vec<LogMatch>> {
         let mut matches = Vec::new();
         
         for line in reader.lines() {
-            let line = line.context("Failed to read line from log file")?;
+            let line = line.context("Failed to read line from log")?;
             
             if let Some(log_match) = self.parse_line(&line)? {
                 matches.push(log_match);

@@ -6,6 +6,7 @@ mod output;
 use anyhow::{Context, Result};
 use clap::Parser as ClapParser;
 use std::path::PathBuf;
+use std::io::{self, IsTerminal};
 
 use config::Config;
 use parser::LogParser;
@@ -16,9 +17,9 @@ use output::{OutputFormat, OutputFormatter};
 #[command(name = "log-time-analyzer")]
 #[command(about = "Analyze log files to find time intervals between specific message patterns", long_about = None)]
 struct Args {
-    /// Path to the log file to analyze
+    /// Path to the log file to analyze (omit to read from stdin)
     #[arg(short, long)]
-    log_file: PathBuf,
+    log_file: Option<PathBuf>,
     
     /// Path to the YAML configuration file (optional if CLI args provided)
     #[arg(short, long)]
@@ -70,9 +71,23 @@ fn main() -> Result<()> {
     let parser = LogParser::new(&config)
         .context("Failed to create log parser")?;
     
-    // Parse log file
-    let matches = parser.parse_file(&args.log_file)
-        .context("Failed to parse log file")?;
+    // Parse log from file or stdin
+    let matches = if let Some(log_file) = args.log_file {
+        // Parse from file
+        parser.parse_file(&log_file)
+            .context("Failed to parse log file")?
+    } else {
+        // Check if stdin is a terminal (not piped)
+        if io::stdin().is_terminal() {
+            anyhow::bail!("No log file provided and stdin is not piped. Use --log-file or pipe input.");
+        }
+        
+        // Parse from stdin
+        let stdin = io::stdin();
+        let reader = stdin.lock();
+        parser.parse_reader(reader)
+            .context("Failed to parse log from stdin")?
+    };
     
     if matches.is_empty() {
         eprintln!("No matching patterns found in log file");
