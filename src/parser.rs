@@ -6,6 +6,7 @@ use std::io::{BufRead, BufReader};
 use std::path::Path;
 
 use crate::config::Config;
+use crate::timestamp_formats::{get_builtin_formats, TimestampFormat};
 
 #[derive(Debug, Clone)]
 pub struct LogMatch {
@@ -14,15 +15,33 @@ pub struct LogMatch {
 }
 
 pub struct LogParser {
-    timestamp_regex: Regex,
-    timestamp_format: String,
+    timestamp_regex: Option<Regex>,
+    timestamp_format: Option<String>,
     pattern_regexes: Vec<(usize, String, Regex)>,
+    builtin_formats: Vec<(Regex, TimestampFormat)>,
+    is_auto_detect: bool,
 }
 
 impl LogParser {
     pub fn new(config: &Config) -> Result<Self> {
-        let timestamp_regex = Regex::new(&config.timestamp_regex)
-            .context("Invalid timestamp regex")?;
+        let (timestamp_regex, timestamp_format, builtin_formats) = if config.is_auto_detect {
+            // Prepare all built-in formats for auto-detection
+            let formats = get_builtin_formats();
+            let mut compiled_formats = Vec::new();
+            
+            for format in formats {
+                let regex = Regex::new(format.regex)
+                    .with_context(|| format!("Failed to compile built-in regex for format: {}", format.name))?;
+                compiled_formats.push((regex, format));
+            }
+            
+            (None, None, compiled_formats)
+        } else {
+            let timestamp_regex = Regex::new(&config.timestamp_regex)
+                .context("Invalid timestamp regex")?;
+            
+            (Some(timestamp_regex), Some(config.timestamp_format.clone()), Vec::new())
+        };
         
         let mut pattern_regexes = Vec::new();
         for (idx, pattern) in config.message_patterns.iter().enumerate() {
@@ -33,8 +52,10 @@ impl LogParser {
         
         Ok(LogParser {
             timestamp_regex,
-            timestamp_format: config.timestamp_format.clone(),
+            timestamp_format,
             pattern_regexes,
+            builtin_formats,
+            is_auto_detect: config.is_auto_detect,
         })
     }
     
@@ -85,18 +106,40 @@ impl LogParser {
     
     /// Extract timestamp from a log line
     fn extract_timestamp(&self, line: &str) -> Result<Option<NaiveDateTime>> {
-        if let Some(captures) = self.timestamp_regex.captures(line) {
-            if let Some(ts_str) = captures.get(1) {
-                let timestamp = NaiveDateTime::parse_from_str(
-                    ts_str.as_str(),
-                    &self.timestamp_format,
-                )
-                .with_context(|| format!("Failed to parse timestamp: {}", ts_str.as_str()))?;
-                
-                return Ok(Some(timestamp));
+        if self.is_auto_detect {
+            // Try each built-in format until one works
+            for (regex, format) in &self.builtin_formats {
+                if let Some(captures) = regex.captures(line) {
+                    if let Some(ts_str) = captures.get(1) {
+                        // Try to parse with this format
+                        if let Ok(timestamp) = NaiveDateTime::parse_from_str(
+                            ts_str.as_str(),
+                            format.format,
+                        ) {
+                            return Ok(Some(timestamp));
+                        }
+                    }
+                }
             }
+            Ok(None)
+        } else {
+            // Use the configured format
+            let timestamp_regex = self.timestamp_regex.as_ref().unwrap();
+            let timestamp_format = self.timestamp_format.as_ref().unwrap();
+            
+            if let Some(captures) = timestamp_regex.captures(line) {
+                if let Some(ts_str) = captures.get(1) {
+                    let timestamp = NaiveDateTime::parse_from_str(
+                        ts_str.as_str(),
+                        timestamp_format,
+                    )
+                    .with_context(|| format!("Failed to parse timestamp: {}", ts_str.as_str()))?;
+                    
+                    return Ok(Some(timestamp));
+                }
+            }
+            
+            Ok(None)
         }
-        
-        Ok(None)
     }
 }

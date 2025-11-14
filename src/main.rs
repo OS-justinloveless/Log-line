@@ -2,6 +2,7 @@ mod config;
 mod parser;
 mod analyzer;
 mod output;
+mod timestamp_formats;
 
 use anyhow::{Context, Result};
 use clap::Parser as ClapParser;
@@ -90,7 +91,32 @@ fn main() -> Result<()> {
     };
     
     if matches.is_empty() {
-        eprintln!("No matching patterns found in log file");
+        if config.is_auto_detect {
+            eprintln!("Error: No matching patterns found in log file with timestamps.");
+            eprintln!();
+            eprintln!("The automatic timestamp detection could not find any log lines with recognizable timestamps.");
+            eprintln!("This could mean:");
+            eprintln!("  1. The log file doesn't contain timestamps in a supported format");
+            eprintln!("  2. The timestamp format is non-standard");
+            eprintln!();
+            eprintln!("Supported timestamp formats include:");
+            eprintln!("  - ISO 8601: 2025-11-13T10:00:00.123+00:00");
+            eprintln!("  - Common log: 2025-11-13 10:00:00");
+            eprintln!("  - Apache/Nginx: [13/Nov/2025:10:00:00 +0000]");
+            eprintln!("  - Syslog: Nov 13 10:00:00");
+            eprintln!("  - Unix timestamp: 1699876800");
+            eprintln!("  - And many more...");
+            eprintln!();
+            eprintln!("To manually specify a timestamp format, use:");
+            eprintln!("  --timestamp-regex '<regex_pattern>' --timestamp-format '<chrono_format>'");
+            eprintln!();
+            eprintln!("Example:");
+            eprintln!("  --timestamp-regex '(\\d{{4}}-\\d{{2}}-\\d{{2}} \\d{{2}}:\\d{{2}}:\\d{{2}})' \\");
+            eprintln!("  --timestamp-format '%Y-%m-%d %H:%M:%S'");
+            anyhow::bail!("No timestamps could be detected automatically");
+        } else {
+            eprintln!("No matching patterns found in log file");
+        }
         return Ok(());
     }
     

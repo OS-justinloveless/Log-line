@@ -4,10 +4,12 @@ A CLI utility written in Rust that parses log files to find specific messages an
 
 ## Features
 
+- **Automatic timestamp detection** - Recognizes 16+ common timestamp formats automatically
 - Parse log files with custom timestamp formats
 - Search for multiple message patterns using regular expressions
 - Calculate time intervals between consecutive pattern matches
-- Configure via YAML file
+- Configure via YAML file or command-line arguments
+- Multiple output formats (human, JSON, CSV, TSV, table, simple)
 - Human-readable duration output
 
 ## Installation
@@ -79,6 +81,36 @@ This is particularly useful for:
 
 ## Usage
 
+### Quick Start with Auto-Detection
+
+The easiest way to use the tool is with automatic timestamp detection. Just provide your log file and the patterns you want to track:
+
+```bash
+# Analyze with automatic timestamp detection
+./target/release/log-time-analyzer --log-file example.log \
+  --pattern "Starting request processing" \
+  --pattern "Database query completed" \
+  --pattern "Response sent to client"
+```
+
+The tool will automatically detect the timestamp format in your log file. It supports 16+ common formats including:
+- ISO 8601: `2025-11-13T10:00:00.123+00:00`
+- Common log: `2025-11-13 10:00:00`
+- Apache/Nginx: `[13/Nov/2025:10:00:00 +0000]`
+- Syslog: `Nov 13 10:00:00`
+- Unix timestamps: `1699876800`
+- And many more...
+
+See **[AUTO_DETECTION.md](AUTO_DETECTION.md)** for complete details on supported formats.
+
+### Using a Configuration File
+
+For complex setups or repeated analyses, you can use a YAML configuration file:
+
+```bash
+./target/release/log-time-analyzer --log-file example.log --config config.yaml
+```
+
 Basic usage:
 
 ```bash
@@ -89,18 +121,21 @@ Basic usage:
 
 #### Required Arguments
 
-- `-l, --log-file <PATH>`: Path to the log file to analyze
+- `-l, --log-file <PATH>`: Path to the log file to analyze (omit to read from stdin)
 
 #### Configuration Arguments
 
-You can either use a YAML config file or provide all settings via CLI:
+You can use automatic detection, a YAML config file, or provide all settings via CLI:
 
-- `-c, --config <PATH>`: Path to the YAML configuration file (optional if CLI options provided)
-- `-r, --timestamp-regex <REGEX>`: Regular expression to extract timestamps (overrides config)
-- `-t, --timestamp-format <FORMAT>`: Timestamp format string using chrono format (overrides config)
+- `-c, --config <PATH>`: Path to the YAML configuration file (optional)
+- `-r, --timestamp-regex <REGEX>`: Regular expression to extract timestamps (overrides config and disables auto-detection)
+- `-t, --timestamp-format <FORMAT>`: Timestamp format string using chrono format (overrides config and disables auto-detection)
 - `-p, --pattern <PATTERN>`: Message pattern to search for (can be specified multiple times, overrides config)
 
-**Note:** When no config file is provided, you must specify `-r`, `-t`, and at least two `-p` arguments.
+**Note:** 
+- When no config file is provided and no timestamp arguments are given, the tool will automatically detect the timestamp format.
+- When providing timestamp configuration, you must specify both `-r` and `-t`.
+- At least two `-p` pattern arguments are required.
 
 #### Output Options
 
@@ -118,6 +153,12 @@ You can either use a YAML config file or provide all settings via CLI:
 
 ### Usage Patterns
 
+**Auto-detection (easiest):**
+```bash
+./log-time-analyzer --log-file app.log \
+  --pattern "Starting" --pattern "Finished"
+```
+
 **Using config file:**
 ```bash
 ./log-time-analyzer --log-file app.log --config config.yaml
@@ -130,6 +171,12 @@ You can either use a YAML config file or provide all settings via CLI:
 
 **No config file (all CLI):**
 ```bash
+# With auto-detection (recommended)
+./log-time-analyzer -l app.log \
+  -p "Starting request" \
+  -p "Request completed"
+
+# With manual timestamp format
 ./log-time-analyzer -l app.log \
   -r '(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})' \
   -t '%Y-%m-%d %H:%M:%S' \
@@ -354,7 +401,8 @@ The tool will provide helpful error messages for:
 
 ## More Examples
 
-For extensive CLI examples including scripting, automation, and CI/CD integration, see:
+For more detailed information, see:
+- **[AUTO_DETECTION.md](AUTO_DETECTION.md)** - Automatic timestamp detection guide
 - **[CLI_EXAMPLES.md](CLI_EXAMPLES.md)** - Comprehensive CLI usage examples
 - **[OUTPUT_FORMATS.md](OUTPUT_FORMATS.md)** - Detailed output format comparison
 
